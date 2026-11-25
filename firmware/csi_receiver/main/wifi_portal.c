@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "esp_mac.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
@@ -17,6 +18,7 @@
 static const char *TAG = "WIFI_PORTAL";
 static const char *NVS_NAMESPACE = "wifi_cfg";
 static const char *AP_SSID = "ESP32-CSI-SETUP";
+static char s_ap_password[13];
 
 static esp_netif_t *s_ap_netif;
 static httpd_handle_t s_server;
@@ -348,17 +350,27 @@ esp_err_t wifi_portal_prepare(void)
     esp_err_t err = esp_wifi_set_mode(WIFI_MODE_APSTA);
     if (err != ESP_OK) return err;
 
+    uint8_t mac[6] = {0};
+    err = esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+    if (err != ESP_OK) return err;
+
+    /* A per-device key prevents nearby strangers from joining the setup AP. */
+    snprintf(s_ap_password, sizeof(s_ap_password), "CSI-%02X%02X%02X",
+             mac[3], mac[4], mac[5]);
+
     wifi_config_t ap_config = {0};
     memcpy(ap_config.ap.ssid, AP_SSID, strlen(AP_SSID));
     ap_config.ap.ssid_len = strlen(AP_SSID);
+    memcpy(ap_config.ap.password, s_ap_password, strlen(s_ap_password));
     ap_config.ap.channel = 1;
     ap_config.ap.max_connection = 4;
-    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+    ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
 
     err = esp_wifi_set_config(WIFI_IF_AP, &ap_config);
     if (err == ESP_OK) {
         s_portal_active = true;
-        ESP_LOGW(TAG, "Setup Wi-Fi is active: %s (open network)", AP_SSID);
+        ESP_LOGW(TAG, "Setup Wi-Fi is active: %s", AP_SSID);
+        ESP_LOGW(TAG, "Temporary setup password: %s", s_ap_password);
         ESP_LOGW(TAG, "Connect to it, then open http://192.168.4.1");
     }
     return err;

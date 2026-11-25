@@ -20,5 +20,6 @@ idf_component_register(
         esp_timer        # High-resolution timer for CSI timestamps
         heap             # Heap capability allocation APIs
         esp_http_server  # Local Wi-Fi setup portal
+        esp_hw_support   # Read unique device MAC for setup AP security
         json             # JSON request/response handling
 )
