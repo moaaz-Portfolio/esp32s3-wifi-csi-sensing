@@ -6,8 +6,8 @@
  *
  * Architecture:
  *   WiFi driver task (priority 23)
- *     └─► csi_callback()          [IRAM, ISR-safe, < 10 µs]
- *           └─► xQueueSendFromISR()
+ *     └─► csi_callback()          [short, non-blocking callback]
+ *           └─► xQueueSend(..., 0)
  *                 └─► g_csi_queue  [32 slots, DRAM]
  *                       └─► csi_processing_task() [priority 5, core 1]
  *                             └─► ets_printf() → UART → Python
@@ -33,6 +33,7 @@
 #include "esp_err.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
+#include "esp_heap_caps.h"
 #include "rom/ets_sys.h"   /* ets_printf — writes directly to UART0 hardware */
 #define FIXED_SUBCARRIERS 52
 static const char *TAG = "WIFI_CSI";
@@ -87,14 +88,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 /* ===========================================================================
  * SECTION 2: CSI callback
  *
- * CRITICAL RULES — this function runs inside the WiFi driver task (prio 23):
- *   ✓ IRAM_ATTR — always resident in fast RAM, no cache miss latency
- *   ✓ Must return in < ~50 µs
- *   ✓ Only calls ISR-safe FreeRTOS functions (xQueueSendFromISR)
- *   ✗ No printf / ets_printf
- *   ✗ No malloc / free
- *   ✗ No vTaskDelay or any blocking call
- *   ✗ No esp_wifi_* calls (not reentrant from callback context)
+ * This callback runs in the WiFi driver task context, not in an ISR.
+ * Keep it short and non-blocking: copy the CSI frame into the queue and
+ * return. Do not print, allocate memory, delay, or reconfigure WiFi here.
  * =========================================================================== */
 static void IRAM_ATTR csi_callback(void *ctx, wifi_csi_info_t *data)
 {
@@ -130,16 +126,8 @@ static void IRAM_ATTR csi_callback(void *ctx, wifi_csi_info_t *data)
     }
     memcpy(pkt.buf, data->buf, copy_bytes);
 
-    /* Send to queue — timeout=0 means DROP if full (never block WiFi task).
-     * BaseType_t woken: set if a higher-prio task was unblocked by this send. */
-    BaseType_t higher_prio_task_woken = pdFALSE;
-    xQueueSendFromISR(g_csi_queue, &pkt, &higher_prio_task_woken);
-
-    /* If the queue send woke our processing task, yield to it immediately
-     * rather than waiting for the next FreeRTOS tick. This minimises latency. */
-    if (higher_prio_task_woken == pdTRUE) {
-        portYIELD_FROM_ISR();
-    }
+    /* Timeout=0 keeps the WiFi task non-blocking; a full queue drops this frame. */
+    (void)xQueueSend(g_csi_queue, &pkt, 0);
 }
 
 /* ===========================================================================

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080b13">
+<title>WiFi CSI Sensing · Firmware Installer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+:root{color-scheme:dark;--bg:#080b13;--panel:#111a29;--line:#29384c;--cyan:#54e4d2;--violet:#9587ff;--muted:#9aa9bb;--white:#eff6ff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--white);font-family:Cairo,sans-serif;background:radial-gradient(ellipse at 80% -10%,#153b48 0,transparent 38%),radial-gradient(ellipse at 0 75%,#251b49 0,transparent 34%),var(--bg)}
+main{width:min(960px,100%);margin:auto;padding:30px 20px 55px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:48px}.brand{display:flex;align-items:center;gap:12px;font:700 12px 'Space Mono';letter-spacing:1px}.mark{width:42px;height:42px;border:1px solid #3d6977;border-radius:13px;display:grid;place-items:center;color:var(--cyan);font-size:23px}.tag{border:1px solid var(--line);border-radius:99px;padding:7px 13px;color:var(--muted);font-size:12px}
+.hero{text-align:center;max-width:720px;margin:0 auto 30px}.eyebrow{color:var(--cyan);font:700 11px 'Space Mono';letter-spacing:2px}.hero h1{font-size:clamp(32px,6vw,56px);line-height:1.2;margin:14px 0 10px;font-weight:900}.hero h1 span{color:var(--cyan)}.hero p{color:var(--muted);font-size:14px;line-height:2;margin:0}
+.panel{max-width:700px;margin:auto;padding:clamp(20px,4vw,34px);border:1px solid var(--line);border-radius:23px;background:linear-gradient(145deg,#142033,#0d1420);box-shadow:0 25px 90px #0007;position:relative;overflow:hidden}.panel:before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),var(--violet),transparent)}
+.device{height:130px;border:1px dashed #365366;border-radius:17px;display:grid;place-items:center;margin-bottom:22px;background:radial-gradient(ellipse,#1a3541aa,transparent 70%)}.chip{width:190px;height:78px;border:1px solid #467482;border-radius:12px;background:linear-gradient(145deg,#1a2b3b,#0b121d);display:flex;align-items:center;justify-content:center;gap:13px}.chip b{font:700 17px 'Space Mono';color:var(--cyan)}.chip small{display:block;color:#91a9b7;font:10px 'Space Mono';margin-top:5px}
+h2{font-size:19px;margin:0 0 7px}.desc{color:var(--muted);font-size:13px;line-height:1.9;margin:0 0 18px}.install{display:flex;justify-content:center;margin:22px 0}esp-web-install-button{--esp-tools-button-color:var(--cyan);--esp-tools-button-text-color:#061016;--esp-tools-button-border-radius:13px;--esp-tools-button-padding:14px 30px}
+.note{border:1px solid #594a2b;background:#30281755;border-radius:12px;padding:12px 14px;color:#e8c98a;font-size:12px;line-height:1.9}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.step{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;color:var(--muted);font-size:12px}.step b{display:block;color:var(--white);font:700 10px 'Space Mono';margin-bottom:7px}.footer{text-align:center;color:#64748b;font:10px 'Space Mono';margin-top:25px}
+@media(max-width:600px){main{padding:20px 14px 40px}.top{margin-bottom:34px}.steps{grid-template-columns:1fr}.hero p{font-size:13px}}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <div class="brand"><div class="mark">◈</div><div>WIFI CSI SENSING<br><span style="color:#64748b;font-size:10px">ESP32-S3 · BROWSER INSTALLER</span></div></div>
+  <div class="tag">ESP32-S3 · USB</div>
+</header>
+<section class="hero">
+  <div class="eyebrow">GITHUB ACTIONS BUILD · DIRECT USB FLASH</div>
+  <h1>حوّل لوحتك إلى<br><span>WiFi CSI Sensor</span></h1>
+  <p>آخر إصدار Firmware بيتبني تلقائيًا على GitHub Actions. وصّل لوحة ESP32-S3 وثبّت البرنامج مباشرة من المتصفح، من غير ESP-IDF أو Arduino IDE على جهازك.</p>
+</section>
+<section class="panel">
+  <div class="device"><div class="chip"><div style="font-size:26px;color:#54e4d2">▦</div><div><b>ESP32-S3</b><small>CSI RECEIVER NODE</small></div></div></div>
+  <h2>تثبيت Firmware</h2>
+  <p class="desc">استخدم Chrome أو Edge على الكمبيوتر، وكابل USB يدعم نقل البيانات. اضغط Install، اختار منفذ اللوحة، ووافق على عملية الحرق.</p>
+  <div class="install">
+    <esp-web-install-button manifest="./firmware/manifest.json"></esp-web-install-button>
+  </div>
+  <div class="note">تنبيه: التثبيت الجديد بيطلب مسح ذاكرة الفلاش. ما تفصلش USB أثناء الحرق. لو اللوحة مش ظاهرة، جرّب كابل بيانات أو اضغط BOOT أثناء توصيل USB.</div>
+  <div class="steps">
+    <div class="step"><b>01 / CONNECT</b>وصّل ESP32-S3 بالكمبيوتر</div>
+    <div class="step"><b>02 / SELECT</b>اختار منفذ USB من المتصفح</div>
+    <div class="step"><b>03 / INSTALL</b>اضغط Install واستنى النهاية</div>
+  </div>
+</section>
+<div class="footer">ESP32-S3 WIFI CSI · ESP WEB TOOLS · GITHUB PAGES</div>
+</main>
+</body>
+</html>

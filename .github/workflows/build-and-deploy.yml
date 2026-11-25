@@ -1,0 +1,80 @@
+name: Build ESP32-S3 firmware and publish browser flasher
+
+on:
+  push:
+    branches: [activity-recognition]
+  pull_request:
+    branches: [activity-recognition]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-firmware:
+    name: Build ESP32-S3 firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.2.0
+          target: esp32s3
+          path: firmware/csi_receiver
+          command: idf.py build
+
+      - name: Generate ESP Web Tools manifest
+        env:
+          FIRMWARE_VERSION: 0.1.${{ github.run_number }}
+        run: python3 tools/generate_web_manifest.py
+
+      - name: Upload firmware binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32s3-wifi-csi-firmware
+          path: |
+            firmware/csi_receiver/build/**/*.bin
+            firmware/csi_receiver/build/flasher_args.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload GitHub Pages site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-site
+          path: web
+          include-hidden-files: true
+          if-no-files-found: error
+
+  deploy-pages:
+    name: Deploy browser flasher to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/activity-recognition'
+    needs: build-firmware
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download generated website
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-site
+          path: web
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

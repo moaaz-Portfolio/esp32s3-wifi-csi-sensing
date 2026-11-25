@@ -17,4 +17,5 @@ idf_component_register(
         esp_netif        # Network interface abstraction layer
         esp_event        # Event loop — WiFi connects/disconnects via events
         esp_timer        # High-resolution timer for CSI timestamps
+        heap             # Heap capability allocation APIs
 )
