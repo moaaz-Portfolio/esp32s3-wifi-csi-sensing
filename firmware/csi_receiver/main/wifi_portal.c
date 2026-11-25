@@ -18,7 +18,7 @@
 static const char *TAG = "WIFI_PORTAL";
 static const char *NVS_NAMESPACE = "wifi_cfg";
 static const char *AP_SSID = "ESP32-CSI-SETUP";
-static char s_ap_password[20];
+static char s_ap_password[13];
 
 static esp_netif_t *s_ap_netif;
 static httpd_handle_t s_server;
@@ -355,8 +355,8 @@ esp_err_t wifi_portal_prepare(void)
     if (err != ESP_OK) return err;
 
     /* A per-device key prevents nearby strangers from joining the setup AP. */
-    snprintf(s_ap_password, sizeof(s_ap_password), "CSI-%02X%02X%02X%02X%02X%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(s_ap_password, sizeof(s_ap_password), "CSI-%02X%02X%02X",
+             mac[3], mac[4], mac[5]);
 
     wifi_config_t ap_config = {0};
     memcpy(ap_config.ap.ssid, AP_SSID, strlen(AP_SSID));
