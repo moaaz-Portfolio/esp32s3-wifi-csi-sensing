@@ -328,6 +328,18 @@ esp32s3-wifi-csi-sensing-github/
 
 ---
 
+## 🌐 Browser Firmware Installer
+
+The ESP32-S3 firmware is built automatically by GitHub Actions. After a successful build, the generated firmware and ESP Web Tools manifest are published to GitHub Pages.
+
+- **Web flasher:** https://moaaz-portfolio.github.io/esp32s3-wifi-csi-sensing/
+- **Build workflow:** `.github/workflows/build-and-deploy.yml`
+- **Setup notes:** `docs/setup/browser_flasher.md`
+
+Use Chrome or Edge on a computer and connect the board over USB. The manifest is generated from ESP-IDF's `flasher_args.json`, so flash offsets match the actual build.
+
+---
+
 ## 🔭 Future Improvements (Roadmap)
 
 - CNN/LSTM-based HAR for temporal modeling
