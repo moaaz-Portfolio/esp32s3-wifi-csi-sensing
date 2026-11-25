@@ -8,6 +8,7 @@ idf_component_register(
     SRCS
         "main.c"
         "wifi_csi.c"
+        "wifi_portal.c"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -18,4 +19,6 @@ idf_component_register(
         esp_event        # Event loop — WiFi connects/disconnects via events
         esp_timer        # High-resolution timer for CSI timestamps
         heap             # Heap capability allocation APIs
+        esp_http_server  # Local Wi-Fi setup portal
+        json             # JSON request/response handling
 )

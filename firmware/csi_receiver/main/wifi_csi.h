@@ -19,9 +19,7 @@
  * All tunable values are here so you never have to hunt through .c files.
  * --------------------------------------------------------------------------- */
 
-/* WiFi credentials — replace with your AP details */
-#define CSI_WIFI_SSID        "Your_SSID"
-#define CSI_WIFI_PASSWORD    "Your_Password"
+/* Wi-Fi credentials are loaded from device NVS by wifi_portal.c. */
 
 /* Maximum 802.11n HT40 gives 114 subcarriers; HT20 gives 52.
  * We allocate for the maximum so the struct is always the same size. */

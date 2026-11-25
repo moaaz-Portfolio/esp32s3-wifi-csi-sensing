@@ -15,6 +15,7 @@
  */
 
 #include "wifi_csi.h"
+#include "wifi_portal.h"
 
 #include <math.h>
 #include <string.h>
@@ -60,9 +61,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
             case WIFI_EVENT_STA_START:
-                /* WiFi stack started — now attempt to associate */
-                ESP_LOGI(TAG, "WiFi STA started, connecting to AP...");
-                esp_wifi_connect();
+                /* Do not start a station attempt while the setup AP is active. */
+                ESP_LOGI(TAG, "WiFi STA started");
+                if (!wifi_portal_is_active()) {
+                    esp_wifi_connect();
+                }
                 break;
 
             case WIFI_EVENT_STA_CONNECTED:
@@ -71,8 +74,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 break;
 
             case WIFI_EVENT_STA_DISCONNECTED:
-                ESP_LOGW(TAG, "WiFi disconnected, retrying...");
-                esp_wifi_connect();
+                if (wifi_portal_is_active()) {
+                    wifi_portal_on_disconnected();
+                } else {
+                    ESP_LOGW(TAG, "WiFi disconnected, retrying...");
+                    esp_wifi_connect();
+                }
                 break;
 
             default:
@@ -82,6 +89,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        wifi_portal_on_connected();
     }
 }
 
@@ -231,16 +239,20 @@ static void csi_processing_task(void *arg)
 static void wifi_init_sta(void)
 {
     s_wifi_event_group = xEventGroupCreate();
+    if (s_wifi_event_group == NULL) {
+        ESP_LOGE(TAG, "Failed to create WiFi event group");
+        abort();
+    }
 
-    /* Create default WiFi station netif */
-    esp_netif_create_default_wifi_sta();
+    /* Create the station interface first; the setup AP is added only if needed. */
+    if (esp_netif_create_default_wifi_sta() == NULL) {
+        ESP_LOGE(TAG, "Failed to create default WiFi station interface");
+        abort();
+    }
 
-    /* Initialise WiFi driver with default configuration.
-     * WIFI_INIT_CONFIG_DEFAULT() sets safe values for all 40+ fields. */
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&init_cfg));
 
-    /* Register our event handler for WiFi and IP events */
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         WIFI_EVENT, ESP_EVENT_ANY_ID,
         &wifi_event_handler, NULL, NULL));
@@ -248,36 +260,46 @@ static void wifi_init_sta(void)
         IP_EVENT, IP_EVENT_STA_GOT_IP,
         &wifi_event_handler, NULL, NULL));
 
-    /* Configure SSID and password */
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid     = CSI_WIFI_SSID,
-            .password = CSI_WIFI_PASSWORD,
-            /* threshold.authmode: accept WPA2 or stronger.
-             * WIFI_AUTH_WPA2_PSK is correct for most home/office APs. */
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
+    char saved_ssid[33] = {0};
+    char saved_password[65] = {0};
+    bool have_credentials =
+        (wifi_portal_load_credentials(saved_ssid, sizeof(saved_ssid),
+                                      saved_password, sizeof(saved_password)) == ESP_OK);
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    if (have_credentials) {
+        wifi_config_t wifi_config = {0};
+        memcpy(wifi_config.sta.ssid, saved_ssid, strlen(saved_ssid));
+        memcpy(wifi_config.sta.password, saved_password, strlen(saved_password));
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
+        wifi_config.sta.pmf_cfg.capable = true;
+        wifi_config.sta.pmf_cfg.required = false;
+
+        ESP_LOGI(TAG, "Found saved WiFi credentials; attempting automatic connection");
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    } else {
+        ESP_LOGI(TAG, "No saved WiFi network; starting first-time setup AP");
+        ESP_ERROR_CHECK(wifi_portal_prepare());
+    }
+
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "WiFi init complete. Connecting to SSID: %s", CSI_WIFI_SSID);
+    if (have_credentials) {
+        /* Give a known network time to reconnect before opening setup mode. */
+        EventBits_t bits = xEventGroupWaitBits(
+            s_wifi_event_group,
+            WIFI_CONNECTED_BIT,
+            pdFALSE,
+            pdFALSE,
+            pdMS_TO_TICKS(15000)
+        );
 
-    /* Wait until connected (or timeout after 30 s) */
-    EventBits_t bits = xEventGroupWaitBits(
-        s_wifi_event_group,
-        WIFI_CONNECTED_BIT,
-        pdFALSE,     /* do not clear on exit */
-        pdFALSE,     /* wait for any bit */
-        pdMS_TO_TICKS(30000)
-    );
-
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to AP successfully");
-    } else {
-        ESP_LOGW(TAG, "WiFi connection timeout — CSI may still work from nearby APs");
+        if (!(bits & WIFI_CONNECTED_BIT)) {
+            ESP_LOGW(TAG, "Saved network unavailable; opening WiFi setup AP");
+            ESP_ERROR_CHECK(wifi_portal_prepare());
+        } else {
+            ESP_LOGI(TAG, "Automatically reconnected to saved WiFi network");
+        }
     }
 }
 
@@ -405,4 +427,8 @@ void wifi_csi_init(void)
     /* ── Step 3: WiFi STA + CSI ───────────────────────────────────────── */
     wifi_init_sta();
     csi_init();
+
+    if (wifi_portal_is_active()) {
+        ESP_ERROR_CHECK(wifi_portal_start_server());
+    }
 }
